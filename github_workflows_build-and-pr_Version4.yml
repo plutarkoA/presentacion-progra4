@@ -1,0 +1,69 @@
+name: Build PPTX and Open PR
+
+on:
+  push:
+    branches:
+      - presentacion-progra-4
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install python-pptx
+
+      - name: Build PPTX
+        run: python crear_pptx_tema2.py
+
+      - name: Commit generated PPTX
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "build(pptx): add generated deck"
+          file_pattern: "Tema2_jQuery_y_Google_APIs.pptx"
+          branch: presentacion-progra-4
+
+      - name: Open or update PR to main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Check if an open PR already exists from branch to main
+            const { data: prs } = await github.pulls.list({
+              owner, repo, state: 'open', base: 'main', head: `${owner}:presentacion-progra-4`
+            });
+
+            if (prs.length > 0) {
+              core.info(`PR already open: #${prs[0].number}`);
+              return;
+            }
+
+            const { data: pr } = await github.pulls.create({
+              owner, repo,
+              title: "Presentación Tema 2: jQuery y Google APIs (Autor: Jafet)",
+              head: "presentacion-progra-4",
+              base: "main",
+              body: [
+                "Este PR agrega:",
+                "- Script para generar el PPTX",
+                "- Contenido en Markdown",
+                "- Demo (jQuery + Google Maps + Charts)",
+                "",
+                "El workflow generó y anexó `Tema2_jQuery_y_Google_APIs.pptx`."
+              ].join("\n")
+            });
+
+            core.info(`Opened PR #${pr.number}`);
